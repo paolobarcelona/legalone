@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\Importer\Log\LogImporterInterface;
-use App\Service\Parser\Log\LogParserInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -25,10 +25,11 @@ class ImportLogDataCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $result = $this->importer->importLocalLogFile();
+        $this->importer->importLocalLogFile();
 
-        $output->writeln(sprintf('Saved records count: %s', $result->getSaved()));
-        $output->writeln(sprintf('Errors: %s', $result->getFailedMessage()));
+        $output->writeln('Logs are now being saved in the background.');
+
+        \shell_exec('php bin/console messenger:consume async --limit=20 -v');
 
         return Command::SUCCESS;
     }

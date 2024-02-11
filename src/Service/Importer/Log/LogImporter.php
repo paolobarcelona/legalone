@@ -3,69 +3,41 @@ declare(strict_types=1);
 
 namespace App\Service\Importer\Log;
 
-use App\Data\ImportResultData;
-use App\Entity\Log;
-use App\Repository\LogRepositoryInterface;
+use App\Service\DataManager\LogDataManagerInterface;
 use App\Service\Parser\Log\LogParserInterface;
-use Doctrine\ORM\EntityManagerInterface;
-use Throwable;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 final class LogImporter implements LogImporterInterface
 {
     public function __construct (
-        private EntityManagerInterface $entityManager,
         private LogParserInterface $logParser,
-        private LogRepositoryInterface $logRepository
+        private LogDataManagerInterface $logDataManager,
+        private MessageBusInterface $messageBus
     ) {}
 
     /**
      * @inheritDoc
      */
-    public function importLocalLogFile(?string $filePath = null): ImportResultData
+    public function importLocalLogFile(?string $filePath = null): void
     {
         $filePath = $filePath ?? '/app/public/logs/logs.log';
 
-        $result = new ImportResultData();
-
-        $saved = 0;
-
         $logsData = $this->logParser->parseLocalFile($filePath);
         $logsData = $this->removeAlreadySavedLines($logsData);
-        
+
         foreach ($logsData as $logData) {
-            $log = (new Log())
-                ->setServiceName($logData->getServiceName())
-                ->setTimestamp($logData->getTimestamp())
-                ->setRequestMethod($logData->getRequestMethod())
-                ->setRequestUri($logData->getRequestUri())
-                ->setRequestHeader($logData->getRequestHeader())
-                ->setStatusCode($logData->getStatusCode())
-                ->setIdentifier($logData->getUniqueIdentifier());
-
-            $this->entityManager->persist($log);
-
-            $saved++;
+            $this->messageBus->dispatch($logData);
         }
-
-        try {
-            $this->entityManager->flush();
-
-            $result->setSaved($saved);
-        } catch (Throwable $exception) {
-            $result->setFailedMessage($exception->getMessage());
-        }
-
-        return $result;
     }
 
     /**
-     * @param iterable<\App\Data\LogData> $logsData
+     * @param iterable<\App\Message\LogData> $logsData
      * 
-     * @return iterable<\App\Data\LogData>
+     * @return iterable<\App\Message\LogData>
      */    
     private function removeAlreadySavedLines(iterable $logsData): iterable
     {
-        $lastSavedLog = $this->logRepository->getLastSavedLog();
+        $lastSavedLog = $this->logDataManager->getLastCreatedLog();
 
         if ($lastSavedLog === null) {
             return $logsData;

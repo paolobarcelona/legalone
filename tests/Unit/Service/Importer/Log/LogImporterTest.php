@@ -3,18 +3,43 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Parser;
 
-use App\Data\LogData;
 use App\Entity\Log;
-use App\Repository\LogRepositoryInterface;
+use App\Message\LogData;
+use App\Service\DataManager\LogDataManagerInterface;
 use App\Service\Importer\Log\LogImporter;
+use App\Service\Importer\Log\LogImporterInterface;
 use App\Service\Parser\Log\LogParserInterface;
 use DateTime;
-use Doctrine\ORM\EntityManagerInterface;
-use Exception;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
 
+/**
+ * @group LogImporterTest
+ */
 final class LogImporterTest extends KernelTestCase
 {
+    private MockObject|LogParserInterface $logParser;
+
+    private MockObject|LogDataManagerInterface $logDataManager;
+
+    private MockObject|MessageBusInterface $messageBus;
+
+    private LogImporterInterface $logImporter;
+
+    protected function setUp(): void
+    {
+        $this->logParser = $this->createMock(LogParserInterface::class);
+        $this->logDataManager = $this->createMock(LogDataManagerInterface::class);
+        $this->messageBus = $this->createMock(MessageBusInterface::class);
+
+        $this->logImporter = new LogImporter(
+            $this->logParser, 
+            $this->logDataManager,
+            $this->messageBus
+        );
+    }
+
     public function testImportLocalLogFileSuccess(): void
     {
         $logData = new LogData(
@@ -26,50 +51,27 @@ final class LogImporterTest extends KernelTestCase
             201
         );
 
-        $log = (new Log())
-            ->setServiceName($logData->getServiceName())
-            ->setTimestamp($logData->getTimestamp())
-            ->setRequestMethod($logData->getRequestMethod())
-            ->setRequestUri($logData->getRequestUri())
-            ->setRequestHeader($logData->getRequestHeader())
-            ->setStatusCode($logData->getStatusCode())
-            ->setIdentifier($logData->getUniqueIdentifier());
-
         $path = 'tests/data/test.log';
 
-        $parser = $this->createMock(LogParserInterface::class);
-        $parser
+        $this->logParser
             ->expects($this->once())
             ->method('parseLocalFile')
             ->with($path)
             ->willReturn([$logData]);
 
-        $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager
+        $this->messageBus
             ->expects($this->once())
-            ->method('persist')
-            ->with($log);
+            ->method('dispatch')
+            ->with($logData)
+            ->willReturn(new Envelope($logData));
 
-        $entityManager
-            ->expects($this->once())
-            ->method('flush');
 
-        $logRepository = $this->createMock(LogRepositoryInterface::class);
-        $logRepository
+        $this->logDataManager
             ->expects($this->once())
-            ->method('getLastSavedLog')
+            ->method('getLastCreatedLog')
             ->willReturn(null);        
 
-        $importer = new LogImporter(
-            $entityManager,
-            $parser,
-            $logRepository
-        );
-
-        $result = $importer->importLocalLogFile($path);
-
-        self::assertEquals(1, $result->getSaved());
-        self::assertNull($result->getFailedMessage());
+        $this->logImporter->importLocalLogFile($path);
     }
 
     public function testImportLocalLogFileSuccessWithPreviouslySavedLogs(): void
@@ -94,99 +96,21 @@ final class LogImporterTest extends KernelTestCase
 
         $path = 'tests/data/test.log';
 
-        $parser = $this->createMock(LogParserInterface::class);
-        $parser
+        $this->logParser
             ->expects($this->once())
             ->method('parseLocalFile')
             ->with($path)
             ->willReturn([$logData]);
 
-        $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager
+        $this->messageBus
             ->expects($this->never())
-            ->method('persist')
-            ->with($log);
+            ->method('dispatch');
 
-        $entityManager
+        $this->logDataManager
             ->expects($this->once())
-            ->method('flush');
-
-        $logRepository = $this->createMock(LogRepositoryInterface::class);
-        $logRepository
-            ->expects($this->once())
-            ->method('getLastSavedLog')
+            ->method('getLastCreatedLog')
             ->willReturn($log);        
 
-        $importer = new LogImporter(
-            $entityManager,
-            $parser,
-            $logRepository
-        );
-
-        $result = $importer->importLocalLogFile($path);
-
-        self::assertEquals(0, $result->getSaved());
-        self::assertNull($result->getFailedMessage());
-    }
-
-    public function testImportLocalLogFileSuccessWithErrors(): void
-    {
-        $logData = new LogData(
-            'USER-SERVICE', 
-            new DateTime('18/Aug/2018:10:33:59 +0000'), 
-            'POST', 
-            '/users', 
-            'HTTP/1.1', 
-            201
-        );
-
-        $log = (new Log())
-            ->setServiceName($logData->getServiceName())
-            ->setTimestamp($logData->getTimestamp())
-            ->setRequestMethod($logData->getRequestMethod())
-            ->setRequestUri($logData->getRequestUri())
-            ->setRequestHeader($logData->getRequestHeader())
-            ->setStatusCode($logData->getStatusCode())
-            ->setIdentifier($logData->getUniqueIdentifier());
-
-        $path = 'tests/data/test.log';
-
-        $exception = new Exception('Something went wrong.');
-
-        $parser = $this->createMock(LogParserInterface::class);
-        $parser
-            ->expects($this->once())
-            ->method('parseLocalFile')
-            ->with($path)
-            ->willReturn([$logData]);
-
-        $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager
-            ->expects($this->never())
-            ->method('persist')
-            ->with($log);
-
-        $entityManager
-            ->expects($this->once())
-            ->method('flush')
-            ->willThrowException($exception);
-
-        $logRepository = $this->createMock(LogRepositoryInterface::class);
-        $logRepository
-            ->expects($this->once())
-            ->method('getLastSavedLog')
-            ->willReturn($log);        
-
-        $importer = new LogImporter(
-            $entityManager,
-            $parser,
-            $logRepository
-        );
-
-        $result = $importer->importLocalLogFile($path);
-
-        self::assertEquals(0, $result->getSaved());
-        self::assertNotNull($result->getFailedMessage());
-        self::assertEquals($exception->getMessage(), $result->getFailedMessage()); 
+        $this->logImporter->importLocalLogFile($path);
     }
 }

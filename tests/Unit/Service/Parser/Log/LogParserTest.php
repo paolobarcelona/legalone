@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Parser;
 
-use App\Data\LogData;
+use App\Message\LogData;
 use App\Service\Mapper\Log\LogMapperInterface;
 use App\Service\Parser\Log\LogParser;
 use DateTime;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Data\LogCounterRequestData;
-use App\Repository\LogRepositoryInterface;
+use App\Service\DataManager\LogDataManagerInterface;
 use DateTime;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 final class LogController extends AbstractController
 {
-    public function __construct(private LogRepositoryInterface $logRepository) {}
+    public function __construct(private LogDataManagerInterface $logDataManager) {}
 
     #[Route(
         '/logs/count', 
@@ -91,7 +91,7 @@ final class LogController extends AbstractController
         }
 
         return new JsonResponse([
-            'counter' => $this->logRepository->countLogsByFilters($requestData),
+            'counter' => $this->logDataManager->countLogsByFilters($requestData),
         ]);
     }
 
@@ -103,7 +103,7 @@ final class LogController extends AbstractController
     )]
     public function delete(): Response
     {
-        $this->logRepository->deleteAllLogs();
+        $this->logDataManager->truncate();
 
         return new Response(Response::$statusTexts[Response::HTTP_NO_CONTENT], Response::HTTP_NO_CONTENT);
     }

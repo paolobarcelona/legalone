@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mapper\Log;
 
-use App\Data\LogData;
+use App\Message\LogData;
 use DateTIme;
 
 final class LogMapper implements LogMapperInterface

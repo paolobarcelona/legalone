@@ -2,7 +2,7 @@
 
 namespace App\DataFixtures;
 
-use App\Data\LogData;
+use App\Message\LogData;
 use App\Entity\Log;
 use DateTime;
 use Doctrine\Bundle\FixturesBundle\Fixture;

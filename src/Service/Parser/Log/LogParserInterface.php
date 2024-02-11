@@ -8,7 +8,7 @@ interface LogParserInterface
     /**
      * @param string $filePath
      * 
-     * @return iterable<\App\Data\LogData>
+     * @return iterable<\App\Message\LogData>
      */
     public function parseLocalFile(string $filePath): iterable;    
 }
