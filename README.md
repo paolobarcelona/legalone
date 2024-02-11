@@ -11,6 +11,7 @@ Execute setup.sh to setup the docker environment and run migrations.
 
 ### Available Commands
 * To import the current contents of the log file located in `/public/logs/logs.log`, simply run the command: `docker-compose exec -t php bin/console log:import-data`
+* This command will also execute the command to consume the messages produced from running the data importer.
 
 ### Available Endpoints
 
