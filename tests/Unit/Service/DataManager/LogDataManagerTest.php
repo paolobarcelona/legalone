@@ -59,6 +59,11 @@ final class LogDataManagerTest extends KernelTestCase
 
         $this->entityManager
             ->expects($this->once())
+            ->method('isOpen')
+            ->willReturn(true);
+
+        $this->entityManager
+            ->expects($this->once())
             ->method('persist')
             ->with($log);
 

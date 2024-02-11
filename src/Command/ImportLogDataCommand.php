@@ -29,8 +29,6 @@ class ImportLogDataCommand extends Command
 
         $output->writeln('Logs are now being saved in the background.');
 
-        \shell_exec('php bin/console messenger:consume async --limit=20 -v');
-
         return Command::SUCCESS;
     }
 }

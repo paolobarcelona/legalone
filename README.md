@@ -5,13 +5,14 @@ A small log persistence project
 
 ## Getting Started
 
-Execute setup.sh to setup the docker environment and run migrations.
+* Execute ./setup.sh and you will be prompted whether to start the worker after the installation or no.
+* To start the worker individually run ./start_worker.sh
+* To modify to which image to start the worker on, simply replace `legalone-php-1` with the desired image name in ./start_worker.sh
 
 ## Docs
 
 ### Available Commands
 * To import the current contents of the log file located in `/public/logs/logs.log`, simply run the command: `docker-compose exec -t php bin/console log:import-data`
-* This command will also execute the command to consume the messages produced from running the data importer.
 
 ### Available Endpoints
 
